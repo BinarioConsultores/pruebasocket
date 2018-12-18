@@ -2,6 +2,8 @@ import { SERVER_PORT } from '../globals/environment';
 import express from 'express';
 import socketIO from 'socket.io';
 import http from 'http';
+import { UsuariosLista } from './usuarios-lista';
+import { Usuario } from './usuario';
 
 export default class Server{
 
@@ -31,17 +33,35 @@ export default class Server{
             return this._instance;
         }
     }
-
+    usuariosConectados = new UsuariosLista;
     private escucharSockets(){
         console.log("Escuchando conexiones o sockets");
+
         this.io.on('connection',cliente=>{
-            console.log("nuevo cliente conectado");
+            console.log("[Back-Connection] nuevo cliente conectado " + cliente.id);
+            const usuario = new Usuario(cliente.id);
+            console.log("[Back-Connection] Nuevo Usuario Creado " ,usuario);
+            this.usuariosConectados.agregar(usuario);
+
             cliente.on('disconnect',()=>{
-                console.log("nuevo cliente desconectado");
+                console.log("[Disconnect] nuevo cliente desconectado");
+                this.usuariosConectados.borrarUsuario(cliente.id);
             });
+
             cliente.on('mensaje',(payload:any)=>{
-                console.log("nuevo mensaje ",payload);
+                console.log("[Mensaje]nuevo mensaje ",payload);
                 this.io.emit("mensaje-nuevo",payload);
+            });
+
+            cliente.on('configurar-usuario',(payload:any, callback:Function)=>{
+
+                console.log('[configurar-usuario]Configurando a: ' + payload.nombre);
+                this.usuariosConectados.actualizarNombre(cliente.id,payload.nombre);
+                callback({
+                    ok:true,
+                    mensaje: `Usuario ${payload.nombre} configurado`,
+                });
+                
             });
 
         });
